@@ -117,12 +117,20 @@ def proxy_chat():
         app.logger.exception("Unhandled exception while contacting GigaChat:")
         return jsonify({"error": "Internal server error."}), 500
 
-if __name__ == '__main__':
-    # Pre-warm token in dev if possible
-    try:
-        get_new_gigachat_token()
-    except Exception:
-        app.logger.warning("Couldn't prefetch token (this is OK for local dev).")
+# --- 5. Запуск сервера ---
+def start_server():
+    """Инициализация при старте (работает и в Gunicorn)."""
+    app.logger.info("🚀 Инициализация GigaChat сервера...")
+    token = get_new_gigachat_token()
+    if token:
+        app.logger.info("✅ Новый токен успешно получен при старте.")
+    else:
+        app.logger.warning("⚠️ Не удалось получить токен при старте.")
     threading.Thread(target=background_token_refresher, daemon=True).start()
-    port = int(os.getenv("PORT", "5000"))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    return app
+
+
+app = start_server()
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
