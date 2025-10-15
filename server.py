@@ -19,8 +19,8 @@ requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 app = Flask(__name__)
 
 # --- Config from env ---
-GIGACHAT_CLIENT_ID = os.getenv("0199ca88-1ca2-7766-89d1-fe395b8267fc")
-GIGACHAT_CLIENT_SECRET = os.getenv("dd87c36f-0c27-4867-8262-a83ea80996e8")
+GIGACHAT_CLIENT_ID = os.getenv("GIGACHAT_CLIENT_ID")
+GIGACHAT_CLIENT_SECRET = os.getenv("GIGACHAT_CLIENT_SECRET")
 GIGACHAT_OAUTH_URL = os.getenv("GIGACHAT_OAUTH_URL", "https://ngw.devices.sberbank.ru:9443/api/v2/oauth")
 GIGACHAT_COMPLETIONS_URL = os.getenv("GIGACHAT_COMPLETIONS_URL", "https://gigachat.devices.sberbank.ru/api/v1/chat/completions")
 
