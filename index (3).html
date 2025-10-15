@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ru" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Сберёнок | Финансовый Помощник</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-main: #f0f4f9;
+            --bg-card: #ffffff; --bg-modal: #ffffff;
+            --text-primary: #1c1c1c; --text-secondary: #606060; --accent: #4CAF50;
+            --accent-light: #e8f5e9; --border-color: #e0e0e0; --balance-text-color: #ffffff;
+            --danger-color: #ef4444; --danger-light-color: #fee2e2;
+        }
+        html.dark {
+            --bg-main: #1f2937;
+            --bg-card: #374151; --bg-modal: #2b3544;
+            --text-primary: #f9fafb; --text-secondary: #9ca3af; --accent-light: #2e7d32;
+            --border-color: #4b5563; --balance-text-color: #ffffff; --danger-color: #f87171;
+            --danger-light-color: #450a0a;
+        }
+        body { 
+            font-family: 'Inter', sans-serif;
+            background-color: #d1d5db;
+            color: var(--text-primary); transition: background-color 0.3s, color 0.3s;
+        }
+        .phone-frame { 
+            max-width: 420px;
+            height: 100vh; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        @media (min-width: 421px) { 
+            .phone-frame { 
+                height: 90vh;
+                max-height: 850px; 
+                border: 12px solid #111827; border-radius: 48px; 
+            } 
+        }
+        .view { display: none; }
+        .view.active { display: block; animation: fadeIn 0.4s ease-out forwards; }
+        .modal-content { animation: zoomIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .modal-backdrop { animation: fadeInBackdrop 0.3s ease-out forwards; }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(15px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        @keyframes fadeInBackdrop {
+            from { background-color: rgba(0,0,0,0); } to { background-color: rgba(0,0,0,0.5); }
+        }
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); }
+        }
+        .xp-bar-fill, .goal-progress-bar { transition: width 0.8s cubic-bezier(0.25, 1, 0.5, 1); }
+        .card-animate { transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .card-animate:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04); }
+        body { --accent: var(--user-accent-color, #4CAF50); }
+        .typing-indicator span {
+            height: 8px; width: 8px; background-color: var(--text-secondary);
+            border-radius: 50%; display: inline-block; animation: blink 1.4s infinite both;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink {
+            0% { opacity: 0.2; transform: scale(0.8); }
+            20% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0.2; transform: scale(0.8); }
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+        .nav-btn.active svg, .nav-btn.active span { color: var(--accent) !important; font-weight: 600; }
+        
+        input[type="checkbox"]:checked {
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+            background-size: 80%;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+    </style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4CAF50">
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js')
+  })
+}
+</script>
+
+</head>
+<body class="bg-gray-300 dark:bg-gray-800 flex items-center justify-center">
+
+    <div id="app-container" class="phone-frame bg-[var(--bg-main)] flex flex-col w-full overflow-hidden">
+        <main class="flex-1 overflow-y-auto relative p-6 space-y-6"></main>
+        <footer class="flex-shrink-0 bg-[var(--bg-card)] border-t border-[var(--border-color)] grid grid-cols-6 gap-2 px-2 py-3" id="nav-footer"></footer>
+    </div>
+    
+    <div id="modal-container" class="hidden fixed inset-0 z-50"></div>
+    <div id="toast-container" class="fixed top-5 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-2 w-full max-w-sm px-4"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    let pieChart;
+    const GIGACHAT_API_URL = 'https://server-5knc.onrender.com/api/chat';
+    const XP_PER_LEVEL = 100;
+    const BRIGHT_COLORS = ['#ff9f40', '#4bc0c0', '#ffcd56', '#9966ff', '#36a2eb', '#ff6384', '#4caf50' ];
+    const characterStyles = {
+        'default':   { name: 'Обычный',   img: 'https://i.imgur.com/88egxWw.png' },
+        'superhero': { name: 'Герой',     img: 'https://i.imgur.com/LHuTFmV.jpeg', requiredAchievement: 'tasks_10' },
+        'wizard':    { name: 'Маг',       img: 'https://i.imgur.com/iG3eHks.png', requiredAchievement: 'savings_1000' },
+        'artist':    { name: 'Художник',  img: 'https://i.imgur.com/EaVleOk.jpeg',   requiredAchievement: 'lessons_5' },
+        'astronaut': { name: 'Космонавт', img: 'https://imgur.com/Gm6TZjM.png',  requiredAchievement: 'goals_3' },
+        'detective': { name: 'Сыщик',     img: 'https://i.imgur.com/fxUIXDS.png', requiredAchievement: 'spending_10' },
+    };
+    const achievementConfig = {
+        'tasks_1':      { name: 'Первый шаг',       description: 'Выполнить 1 задачу',        goalKey: 'completedTasks',   goalValue: 1,    xp: 10,  unlockedSkin: null },
+        'tasks_10':     { name: 'Десятка!',         description: 'Выполнить 10 задач',       goalKey: 'completedTasks',   goalValue: 10,   xp: 50,  unlockedSkin: 'superhero' },
+        'savings_1000': { name: 'Накопитель',       description: 'Накопить 1000 ₽',          goalKey: 'totalSavings',     goalValue: 1000, xp: 100, unlockedSkin: 'wizard' },
+        'lessons_1':    { name: 'Ученик',           description: 'Пройти 1 урок',            goalKey: 'lessonsCompleted', goalValue: 1,    xp: 20,  unlockedSkin: null },
+        'lessons_5':    { name: 'Знаток',           description: 'Пройти 5 уроков',          goalKey: 'lessonsCompleted', goalValue: 5,    xp: 75,  unlockedSkin: 'artist' },
+        'goals_3':      { name: 'Целеустремлённый', description: 'Достичь 3 финансовых цели', goalKey: 'goalsAchieved',    goalValue: 3,    xp: 150, unlockedSkin: 'astronaut' },
+        'spending_10':  { name: 'Аналитик',         description: 'Записать 10 расходов',     goalKey: 'spendingCount',    goalValue: 10,   xp: 40,  unlockedSkin: 'detective' },
+    };
+    const spendingCategories = {
+        'Еда':       { color: BRIGHT_COLORS[1], icon: '🍔' }, 'Игры':      { color: BRIGHT_COLORS[0], icon: '🎮' }, 
+        'Развлечения': { color: BRIGHT_COLORS[2], icon: '🎬' }, 'Транспорт': { color: BRIGHT_COLORS[3], icon: '🚌' }, 
+        'Подарки':   { color: BRIGHT_COLORS[4], icon: '🎁' }, 'Прочее':    { color: BRIGHT_COLORS[5], icon: '🛒' }, 
+    };
+    const academyLessons = {
+        'money-101': { title: 'Что такое деньги?', icon: '💰', xp: 25, prompt: 'объясни ребенку 10 лет, что такое деньги, их функции и почему они не растут на деревьях.' },
+        'budget-basics': { title: 'Бюджет: 4 конверта', icon: '📊', xp: 25, prompt: 'как составлять бюджет из карманных денег? Объясни правило "4 конвертов" максимально просто, приведи пример с суммой 500 рублей в неделю.' },
+        'discounts-intro': { title: 'Скидки: Выгода или ловушка?', icon: '🏷️', xp: 25, prompt: 'объясни, как работают скидки, и научи отличать настоящую выгоду от маркетинговых уловок. Приведи пример с покупкой кроссовок.' },
+        'savings-why': { title: 'Копилка vs. Банк', icon: '🏦', xp: 25, prompt: 'объясни разницу между хранением денег в копилке и в банке, а также что такое процент на остаток. Сделай акцент на безопасности и росте денег.' },
+        'first-card': { title: 'Моя первая карта', icon: '💳', xp: 30, prompt: 'расскажи про главные правила безопасности при использовании банковской карты. Что такое ПИН-код, CVV и почему их нельзя никому говорить?' },
+        'online-scammers': { title: 'Осторожно, мошенники!', icon: '👻', xp: 30, prompt: 'опиши 3 самых популярных способа обмана детей в интернете (например, фейковые конкурсы, просьбы "друзей" в соцсетях) и как на них не попасться.' },
+        'needs-vs-wants': { title: 'Хочу vs. Надо', icon: '🤔', xp: 30, prompt: 'объясни разницу между потребностями (еда, одежда) и желаниями (новая игра, сладости). Как правильно расставлять приоритеты при покупках?' },
+        'earning-first-money':{ title: 'Первый заработок', icon: '🛠️', xp: 30, prompt: 'предложи 4-5 безопасных и реальных идей, как подросток 12-14 лет может заработать свои первые карманные деньги (помощь соседям, выгул собак и т.д.).' }
+    };
+    const DOM = { main: document.querySelector('main'), nav: document.getElementById('nav-footer'), modal: document.getElementById('modal-container'), toast: document.getElementById('toast-container'), appContainer: document.querySelector('body'), };
+    let appState = {}; 
+
+    function loadState() {
+        const savedState = JSON.parse(localStorage.getItem('sberenokState_v17_final'));
+        const defaultState = {
+            ui: { currentView: 'home', theme: 'light', isAiTyping: false, accentColor: '#4CAF50', isChatInitiated: false, isFirstLaunch: true, },
+            user: { 
+                name: "Пользователь", 
+                surname: "", 
+                characterStyle: 'default', 
+                balance: 1350.75, 
+                level: 1, 
+                xp: 10, 
+                goals: [{ id: Date.now(), name: "Крутой скейтборд 🛹", current: 2800, target: 4500 }], 
+                schedule: [ 
+                    { id: 1, task: "Подготовиться к контрольной", done: false, xpEarned: false }, 
+                    { id: 2, task: "Тренировка по плаванию", done: true, xpEarned: true }, 
+                    { id: 3, task: "Позвонить бабушке", done: false, xpEarned: false }, 
+                ], 
+                spendingHistory: [], 
+                stats: { completedTasks: 1, totalSavings: 2800, lessonsCompleted: 0, goalsAchieved: 0, spendingCount: 0 }, 
+                unlockedSkins: ['default'], 
+                completedLessons: [], 
+                achievements: [], 
+                proactiveTipsShown: { spendingAnalysis: false, goalMotivation: false, academyWelcome: false } 
+            },
+            chat: { history: [] },
+        };
+        appState = savedState || defaultState;
+        appState.ui.currentView = 'home';
+        appState.ui.isChatInitiated = false; 
+        applyTheme(); 
+        saveState();
+    }
+    
+    function saveState() { localStorage.setItem('sberenokState_v17_final', JSON.stringify(appState)); }
+    function render() { renderNav(); renderView(); }
+    function navigate(viewId) { appState.ui.currentView = viewId; render(); }
+    
+    function renderNav() {
+        const buttons = [
+            { id: 'home', icon: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', label: 'Главная' },
+            { id: 'piggy-bank', icon: '<path d="M10 18V8a4 4 0 1 1 8 0v10M2 22h20"/>', label: 'Копилка' },
+            { id: 'ai-assistant', icon: '<path d="M12 8V4H8"/> <rect width="16" height="12" x="4" y="8" rx="2"/> <path d="M2 14h2"/> <path d="M20 14h2"/> <path d="M15 13v2"/> <path d="M9 13v2"/>', label: 'Сберёнок' },
+            { id: 'schedule', icon: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/>', label: 'Расписание' },
+            { id: 'academy', icon: '<path d="m4 6 8-4 8 4 8-4"/> <path d="M4 10v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10"/>', label: 'Академия' },
+            { id: 'profile', icon: '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>', label: 'Профиль' }
+        ];
+        DOM.nav.innerHTML = buttons.map(btn => `<button data-action="navigate" data-view="${btn.id}" class="nav-btn flex flex-col items-center text-gray-500 dark:text-gray-400 text-xs space-y-1 transition-colors duration-200 ${appState.ui.currentView === btn.id ? 'active' : ''}"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${btn.icon}</svg><span>${btn.label}</span></button>`).join('');
+    }
+
+    async function renderView() {
+        const viewId = appState.ui.currentView;
+        let content = '';
+        const contextualHelpButton = (prompt, persona) => `<button data-action="show-ai-help" data-prompt="${prompt}" data-persona="${persona}" title="Спросить Сберёнка" class="absolute top-2 right-1 w-12 h-12 bg-[var(--accent)] text-white rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 active:scale-95 z-40"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 7.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z"/><path d="M5 21v-2a4.4 4.4 0 0 1 4.4-4.4h5.2A4.4 4.4 0 0 1 19 19v2"/></svg></button>`;
+        
+        if (viewId === 'academy' && !appState.user.proactiveTipsShown.academyWelcome) {
+            setTimeout(() => {
+                showProactiveToast(
+                    'Добро пожаловать в Академию! Здесь ты можешь узнать много нового о деньгах. Готов начать?',
+                    'Начать учиться!',
+                    'Какой урок мне стоит пройти сейчас, чтобы лучше управлять деньгами?',
+                    'academy-tutor'
+                );
+                appState.user.proactiveTipsShown.academyWelcome = true;
+                saveState();
+            }, 500);
+        }
+
+        switch(viewId) {
+            case 'home': content = getHomeHTML(); break;
+            case 'piggy-bank': content = getPiggyBankHTML() + contextualHelpButton('Дай мне 3 развернутых совета, как быстрее накопить на мою текущую цель.', 'financial-analyst'); break;
+            case 'schedule': content = getScheduleHTML() + contextualHelpButton('Помоги мне составить подробный план на завтра, чтобы все успеть.', 'planner'); break;
+            case 'academy': content = getAcademyHTML() + contextualHelpButton('Какой урок мне стоит пройти сейчас, чтобы лучше управлять деньгами?', 'academy-tutor'); break;
+            case 'profile': content = getProfileHTML(); break;
+            case 'ai-assistant': content = getChatAssistantHTML(); break;
+        }
+        DOM.main.innerHTML = `<div class="view active relative">${content}</div>`;
+        if (viewId === 'piggy-bank') setTimeout(renderCharts, 50);
+        if (viewId === 'ai-assistant') renderChatMessages();
+        if (appState.ui.isFirstLaunch) { startOnboarding(); appState.ui.isFirstLaunch = false; saveState(); }
+    }
+    
+    function getHomeHTML() {
+        const charImg = characterStyles[appState.user.characterStyle].img;
+        const tasksLeft = appState.user.schedule.filter(t => !t.done).length;
+        const totalSavings = appState.user.goals.reduce((sum, g) => sum + g.current, 0);
+        return `<div class="flex items-center justify-between mb-6"><div><h1 class="text-3xl font-extrabold text-[var(--text-primary)]">Привет, ${appState.user.name}!</h1><p class="text-[var(--text-secondary)]">Вот твои финансы сегодня.</p></div><img src="${charImg}" class="w-14 h-14 rounded-full border-2 border-[var(--accent)] shadow-md"></div><div class="bg-[var(--accent)] p-6 rounded-2xl shadow-xl card-animate text-[var(--balance-text-color)]"><p class="text-lg opacity-90">Мой баланс</p><p class="text-5xl font-extrabold mt-1">${appState.user.balance.toFixed(2)} ₽</p><div class="flex justify-between mt-4 border-t border-white/30 pt-3 text-sm"><span>Всего в копилках:</span><span class="font-semibold">${totalSavings.toFixed(2)} ₽</span></div></div><h2 class="text-xl font-bold mt-8 mb-3">Моя главная цель</h2>${appState.user.goals.length > 0 ?
+        appState.user.goals.slice(0, 1).map(goal => { const progress = Math.min(100, (goal.current / goal.target) * 100); return `<div class="bg-[var(--bg-card)] p-4 rounded-xl shadow-md card-animate"><h3 class="font-bold text-lg">${goal.name}</h3><p class="text-sm text-[var(--text-secondary)]">${goal.current.toFixed(0)} ₽ из ${goal.target.toFixed(0)} ₽</p><div class="w-full bg-[var(--border-color)] rounded-full h-3 my-2 overflow-hidden"><div class="bg-[var(--accent)] h-3 rounded-full goal-progress-bar" style="width: ${progress}%"></div></div><button data-action="navigate" data-view="piggy-bank" class="mt-2 text-sm font-medium text-[var(--accent)]">Все цели →</button></div>`; }).join('') : `<div class="bg-[var(--bg-card)] p-4 rounded-xl text-center shadow-md text-[var(--text-secondary)]">Нет активных целей. <button data-action="navigate" data-view="piggy-bank" class="font-bold text-[var(--accent)]">Начать копить!</button></div>`}<h2 class="text-xl font-bold mt-8 mb-3">Быстрые действия</h2><div class="grid grid-cols-3 gap-4 text-center"><button data-action="navigate" data-view="ai-assistant" class="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 p-4 rounded-2xl shadow-sm font-medium flex flex-col items-center justify-center card-animate aspect-square"><span class="text-4xl mb-1">💡</span><span class="text-xs">Сберёнок</span></button><button data-action="navigate" data-view="schedule" class="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 p-4 rounded-2xl shadow-sm font-medium flex flex-col items-center justify-center card-animate aspect-square"><span class="text-4xl mb-1">✅</span><span class="text-xs">${tasksLeft} Задач</span></button><button data-action="add-expense" class="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 p-4 rounded-2xl shadow-sm font-medium flex flex-col items-center justify-center card-animate aspect-square"><span class="text-4xl mb-1">💸</span><span class="text-xs">Трата</span></button></div>`;
+    }
+
+    function getPiggyBankHTML() {
+        const goalsHTML = appState.user.goals.map(goal => { const progress = Math.min(100, (goal.current / goal.target) * 100); const isAchieved = goal.current >= goal.target; return `<div class="bg-[var(--bg-card)] p-5 rounded-2xl shadow-sm border-l-4 ${isAchieved ? 'border-green-500' : 'border-[var(--accent)]'}"><div class="flex items-start justify-between mb-2"><div><h3 class="font-bold text-lg">${goal.name}</h3><p class="text-md font-semibold text-[var(--text-secondary)]">${goal.current.toFixed(0)} ₽ / ${goal.target.toFixed(0)} ₽</p></div><div class="flex gap-2"><button data-action="edit-goal" data-goal-id="${goal.id}" class="text-xl text-[var(--text-secondary)] hover:text-[var(--accent)] transition-transform active:scale-90">✏️</button><button data-action="delete-goal" data-goal-id="${goal.id}" class="text-xl text-[var(--danger-color)] hover:opacity-75 transition-transform active:scale-90">🗑️</button></div></div><div class="w-full bg-[var(--border-color)] rounded-full h-2.5 my-3 overflow-hidden"><div class="bg-[var(--accent)] h-2.5 rounded-full goal-progress-bar" style="width: ${progress}%"></div></div><div class="flex gap-2 justify-end mt-4"><button data-action="manage-funds" data-goal-id="${goal.id}" data-type="withdraw" class="bg-gray-200 dark:bg-gray-600 text-[var(--text-primary)] px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95">Снять</button><button data-action="manage-funds" data-goal-id="${goal.id}" data-type="deposit" class="bg-[var(--accent)] text-white px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95">Пополнить</button></div></div>`; }).join('');
+        const hasExpenses = appState.user.spendingHistory.length > 0;
+        return `<h1 class="text-2xl font-bold mb-4">Моя Копилка</h1><div class="space-y-4">${appState.user.goals.length > 0 ? goalsHTML : ''}<button data-action="add-goal" class="w-full bg-[var(--bg-card)] p-4 rounded-xl shadow-sm border-2 border-dashed border-[var(--border-color)] text-[var(--text-secondary)] font-medium transition-colors active:bg-[var(--border-color)] card-animate">+ Добавить новую цель</button></div><h2 class="text-xl font-bold mt-8 mb-3">Анализ расходов</h2><button data-action="add-expense" class="w-full bg-[var(--danger-light-color)] text-[var(--danger-color)] p-3 rounded-xl shadow-sm font-medium mb-4 transition-colors active:scale-[.99] card-animate">💸 Записать новый расход</button><div id="charts-container" class="${hasExpenses ? '' : 'hidden'}"><div class="grid grid-cols-1 gap-4"><div class="bg-[var(--bg-card)] p-4 rounded-2xl shadow-lg w-full card-animate"><h3 class="font-semibold text-sm text-left text-[var(--text-secondary)] mb-2">Расходы по категориям</h3><div class="h-48 flex justify-center items-center"><canvas id="spendingPieChart"></canvas></div></div></div></div><div id="no-charts-placeholder" class="${hasExpenses ? 'hidden' : ''}"><div class="bg-[var(--bg-card)] p-8 rounded-2xl shadow-lg text-center text-[var(--text-secondary)]"><p class="font-medium">Здесь будет аналитика твоих трат.</p><p class="text-sm mt-1">Запиши свой первый расход, чтобы увидеть красивые диаграммы!</p></div></div>`;
+    }
+
+    function getScheduleHTML() {
+        const tasksHTML = appState.user.schedule.map(task => `
+            <div class="flex items-center gap-4 p-4 rounded-xl bg-[var(--bg-card)] shadow-sm transition-all duration-300 ${task.done ? 'bg-green-50 dark:bg-green-900/20' : ''}">
+                <input 
+                    id="task-${task.id}" 
+                    type="checkbox" 
+                    data-action="toggle-task" 
+                    data-task-id="${task.id}" 
+                    ${task.done ? 'checked' : ''} 
+                    class="appearance-none flex-shrink-0 h-6 w-6 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-500 rounded-md focus:ring-2 focus:ring-offset-0 focus:ring-[var(--accent)] transition-colors cursor-pointer checked:bg-[var(--accent)] checked:border-transparent"
+                >
+                <label for="task-${task.id}" class="flex-1 text-md font-medium ${task.done ? 'line-through text-[var(--text-secondary)]' : ''} cursor-pointer">${task.task}</label>
+                <button data-action="edit-task-modal" data-task-id="${task.id}" class="text-xl text-[var(--text-secondary)] hover:text-[var(--accent)] transition-transform active:scale-90 p-1">✏️</button>
+                <button data-action="delete-task" data-task-id="${task.id}" class="text-xl text-[var(--danger-color)] hover:opacity-75 transition-transform active:scale-90 p-1">🗑️</button>
+            </div>`).join('');
+        return `<h1 class="text-2xl font-bold mb-4">Расписание и Задачи</h1><div class="space-y-3">${appState.user.schedule.length > 0 ? tasksHTML : `<p class="text-center text-[var(--text-secondary)] p-8 bg-[var(--bg-card)] rounded-xl">Задач пока нет. Отдыхай! 🌴</p>`}</div><button data-action="add-task-modal" class="w-full bg-[var(--bg-card)] p-4 rounded-xl shadow-sm border-2 border-dashed border-[var(--border-color)] text-[var(--text-secondary)] font-medium mt-4 transition-colors active:bg-[var(--border-color)] card-animate">+ Добавить новую задачу</button>`;
+    }
+
+    function getAcademyHTML() {
+        return `<h1 class="text-2xl font-bold mb-4">Академия Финансов</h1><p class="text-[var(--text-secondary)] mb-6">Учись финансовой грамотности со Сберёнком и получай XP за каждый урок!</p><div class="space-y-4">${Object.entries(academyLessons).map(([key, lesson]) => { const isCompleted = appState.user.completedLessons.includes(key); return `<button data-action="start-lesson" data-lesson-id="${key}" class="w-full text-left p-4 rounded-xl bg-[var(--bg-card)] shadow-md flex items-center justify-between transition-transform active:scale-95 card-animate border-l-4 ${isCompleted ? 'border-green-500' : 'border-blue-400'}"><div class="flex items-center gap-4"><span class="text-3xl">${lesson.icon}</span><div><span class="font-semibold">${lesson.title}</span><p class="text-sm text-[var(--text-secondary)]">+${lesson.xp} XP</p></div></div>${isCompleted ? `<span class="text-green-500 font-bold text-sm">✓ Пройдено</span>` : '<span class="text-gray-400 font-medium text-sm">Начать →</span>'}</button>` }).join('')}</div>`;
+    }
+
+    function getProfileHTML() {
+        const { name, surname, level, xp, unlockedSkins, characterStyle } = appState.user;
+        const progress = (xp / XP_PER_LEVEL) * 100;
+        const achievementsHTML = Object.values(achievementConfig).map(ach => { const isUnlocked = appState.user.achievements.includes(ach.name); return `<div class="p-3 bg-[var(--bg-card)] rounded-lg flex items-center gap-3 border-l-4 ${isUnlocked ? 'border-green-500' : 'border-[var(--border-color)]'}"><div class="w-12 h-12 flex items-center justify-center rounded-full bg-[var(--accent-light)] text-2xl">${isUnlocked ? '🏆' : '🔒'}</div><div><h4 class="font-medium">${ach.name}</h4><p class="text-sm text-[var(--text-secondary)]">${ach.description}</p></div></div>`; }).join('');
+        const colorPalette = [ { name: 'Сбер Green', hex: '#4CAF50' }, { name: 'Sky Blue', hex: '#2196F3' }, { name: 'Sunset Orange', hex: '#FF9800' }, { name: 'Hot Pink', hex: '#E91E63' }, { name: 'Royal Purple', hex: '#9C27B0'} ];
+        return `<div class="text-center"><img src="${characterStyles[characterStyle].img}" class="w-28 h-28 rounded-full border-4 border-[var(--accent)] shadow-lg mx-auto mb-3"><h1 class="text-2xl font-bold">${name} ${surname}</h1><p class="text-sm text-[var(--text-secondary)]">Уровень ${level}</p><div class="w-full bg-[var(--border-color)] rounded-full h-2.5 mt-2 overflow-hidden"><div class="bg-[var(--accent)] h-2.5 rounded-full xp-bar-fill" style="width: ${progress}%"></div></div><p class="text-xs text-right text-[var(--text-secondary)] mt-1">${xp} / ${XP_PER_LEVEL} XP</p></div><h2 class="text-xl font-bold mt-8 mb-3">Мой Профиль</h2><div class="bg-[var(--bg-card)] p-4 rounded-xl shadow-sm"><div class="flex justify-between items-center text-sm"><span>${name} ${surname}</span><button data-action="edit-profile" class="text-[var(--accent)] text-sm font-medium">✏️ Изменить</button></div></div><h2 class="text-xl font-bold mt-8 mb-3">Настройки</h2><div class="bg-[var(--bg-card)] p-4 rounded-xl shadow-sm space-y-4"><button data-action="toggle-theme" class="w-full flex justify-between items-center font-medium"><span>Тема: ${appState.ui.theme === 'light' ? 'Светлая ☀️' : 'Темная 🌙'}</span><span class="text-[var(--accent)]">Сменить</span></button><h3 class="font-medium text-sm border-t border-[var(--border-color)] pt-3">Акцентный цвет</h3><div class="flex justify-around gap-2">${colorPalette.map(color => `<button data-action="change-accent-color" data-color="${color.hex}" class="w-10 h-10 rounded-full shadow-md transition-all active:scale-90" style="background-color: ${color.hex}; border: 3px solid ${appState.ui.accentColor === color.hex ? 'var(--text-primary)' : 'transparent'};" title="${color.name}"></button>`).join('')}</div></div><h2 class="text-xl font-bold mt-8 mb-3">Скины Помощника</h2><div class="grid grid-cols-3 sm:grid-cols-4 gap-4">${Object.entries(characterStyles).map(([key, char]) => `<div class="character-option flex flex-col items-center"><label for="char-${key}" data-action="change-character" data-char-key="${key}" class="relative w-20 h-20 rounded-full border-2 border-transparent overflow-hidden cursor-pointer transition-all active:scale-95 duration-200 ${characterStyle === key ? 'border-[var(--accent)] border-4' : 'border-[var(--border-color)]'}"><img src="${char.img}" class="w-full h-full object-cover"><div class="absolute inset-0 bg-black/60 text-white font-bold rounded-full items-center justify-center text-center text-3xl ${unlockedSkins.includes(key) ? 'hidden' : 'flex'}">🔒</div></label><span class="mt-2 text-xs text-center text-[var(--text-primary)]">${char.name}</span></div>`).join('')}</div><h2 class="text-xl font-bold mt-8 mb-3">Достижения</h2><div class="space-y-2">${achievementsHTML}</div>`;
+    }
+    
+    function getChatAssistantHTML() {
+        return `<h1 class="text-2xl font-bold mb-4">Сберёнок — AI Помощник</h1><div id="chat-history" class="space-y-4 flex flex-col pb-4 h-[calc(100vh-400px)] overflow-y-auto bg-[var(--bg-main)] p-2 rounded-xl border border-[var(--border-color)]"></div><div id="ai-typing-indicator-container" class="h-10"><div id="ai-typing-indicator" class="flex items-center space-x-2 my-2 transition-opacity duration-300 opacity-0 ${appState.ui.isAiTyping ? 'opacity-100' : ''}"><img src="${characterStyles[appState.user.characterStyle].img}" class="w-8 h-8 rounded-full opacity-70 flex-shrink-0"><div class="text-sm text-[var(--text-secondary)] bg-[var(--bg-card)] px-3 py-1 rounded-full">Сберёнок печатает...</div></div></div><div class="mt-2"><h3 class="font-bold mb-2 text-sm text-[var(--text-secondary)]">Быстрые команды</h3><div class="flex gap-2 overflow-x-auto pb-2 -mx-6 px-6"><button data-action="ai-action" data-prompt="Проанализируй мои последние 5 трат и скажи, где я могу сэкономить." data-persona="financial-analyst" class="flex-shrink-0 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95">Анализ расходов</button><button data-action="ai-action" data-prompt="Предложи 3 идеи для заработка карманных денег в этом месяце." data-persona="earning-ideas" class="flex-shrink-0 bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95">Идеи заработка</button><button data-action="ai-action" data-prompt="Дай совет, как не отвлекаться на игры, пока делаю уроки." data-persona="planner" class="flex-shrink-0 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95">Совет по фокусу</button><button data-action="ai-action" data-prompt="Что такое инфляция? Объясни простыми словами." data-persona="academy-tutor" class="flex-shrink-0 bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95">Что такое инфляция?</button><button data-action="ai-action" data-prompt="Расскажи интересный научный факт." data-persona="educator" class="flex-shrink-0 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95">Научный факт</button></div></div><div class="flex gap-2 mt-4"><input type="text" id="chat-input" placeholder="Спроси Сберёнка..." class="flex-1 p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] text-[var(--text-primary)] transition-shadow" onkeypress="if(event.key === 'Enter') document.getElementById('send-chat-btn').click()"><button id="send-chat-btn" data-action="send-chat-message" class="bg-[var(--accent)] text-white p-3 rounded-xl shadow-md transition-all active:scale-95 hover:shadow-lg"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div>`;
+    }
+
+    function renderChatMessages() {
+        const chatHistoryEl = document.getElementById('chat-history');
+        if (!chatHistoryEl) return;
+        if (!appState.ui.isChatInitiated) { appState.ui.isChatInitiated = true; if(appState.chat.history.length === 0) { appState.chat.history.push({ role: 'bot', text: `Привет, ${appState.user.name}! Я Сберёнок, твой умный помощник. Чем могу помочь сегодня? 💡` }); } }
+        chatHistoryEl.innerHTML = appState.chat.history.map(msg => `<div class="flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}">${msg.role === 'bot' ? `<img src="${characterStyles[appState.user.characterStyle].img}" class="w-8 h-8 rounded-full self-start flex-shrink-0">` : ''}<div class="max-w-[80%] p-3 rounded-2xl shadow-sm ${msg.role === 'user' ? 'bg-[var(--accent)] text-white rounded-br-none' : 'bg-[var(--bg-card)] text-[var(--text-primary)] rounded-tl-none'}"><p class="text-sm" style="overflow-wrap: break-word;">${msg.text.replace(/\n/g, '<br>')}</p></div></div>`).join('');
+        chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+        const typingIndicator = document.getElementById('ai-typing-indicator');
+        if (typingIndicator) { typingIndicator.classList.toggle('opacity-100', appState.ui.isAiTyping); typingIndicator.classList.toggle('opacity-0', !appState.ui.isAiTyping); }
+    }
+    
+    function processSpendingData() {
+        const spending = appState.user.spendingHistory;
+        const categoryTotals = {};
+        spending.forEach(item => {
+            const category = item.category || 'Прочее';
+            categoryTotals[category] = (categoryTotals[category] || 0) + item.amount;
+        });
+        const pieLabels = Object.keys(categoryTotals);
+        const pieData = pieLabels.map(label => categoryTotals[label]);
+        const pieColors = pieLabels.map(label => spendingCategories[label]?.color || BRIGHT_COLORS[5]);
+        return { pie: { labels: pieLabels, data: pieData, colors: pieColors } };
+    }
+
+    function renderCharts() {
+        const hasExpenses = appState.user.spendingHistory.length > 0;
+        const chartsContainer = document.getElementById('charts-container');
+        const noChartsPlaceholder = document.getElementById('no-charts-placeholder');
+        if (chartsContainer) chartsContainer.classList.toggle('hidden', !hasExpenses);
+        if (noChartsPlaceholder) noChartsPlaceholder.classList.toggle('hidden', hasExpenses);
+        if (!hasExpenses) return;
+
+        const pieCtx = document.getElementById('spendingPieChart');
+        if (!pieCtx) { return; }
+        if (pieChart) pieChart.destroy();
+        
+        const data = processSpendingData();
+        
+        pieChart = new Chart(pieCtx, {
+            type: 'doughnut',
+            data: {
+                labels: data.pie.labels,
+                datasets: [{
+                    data: data.pie.data,
+                    backgroundColor: data.pie.colors,
+                    borderColor: 'var(--bg-card)',
+                    borderWidth: 6,
+                    hoverOffset: 15
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                animation: { duration: 1200, easing: 'easeOutQuint', animateRotate: true, animateScale: true },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        titleFont: { size: 14, weight: 'bold' },
+                        bodyFont: { size: 12 },
+                        padding: 10,
+                        cornerRadius: 8,
+                        displayColors: false,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                return `${label}: ${value.toFixed(2)} ₽`;
+                            }
+                        }
+                    },
+                    datalabels: { display: false }
+                }
+            }
+        });
+    }
+
+    async function callGigaChatAPI(userPrompt, persona = "assistant") {
+        appState.ui.isAiTyping = true;
+        renderChatMessages();
+        
+        const systemText = (() => {
+            switch (persona) {
+                case 'academy-tutor': return `Ты — Сберёнок, мудрый и добрый наставник. Твоя задача — объяснять сложные финансовые темы детям 8–16 лет. Объясняй всё подробно, приводи аналогии из жизни и развернутые примеры. Твоя цель — сделать сложную тему абсолютно понятной. Используй списки, выделение и немного эмодзи для наглядности.`;
+                case 'planner': return `Ты — Сберёнок, эксперт по продуктивности. Помоги составить детальный и реалистичный план на день. Предложи конкретные шаги, тайминги и мотивирующие советы, чтобы всё успеть и не устать. Будь дружелюбным и поддерживающим 😊`;
+                case 'financial-analyst': return `Ты — Сберёнок, внимательный финансовый советник. Проанализируй траты глубоко и вдумчиво. Дай развернутые, пошаговые советы, как можно сэкономить, не отказывая себе в важном. Объясни, почему твои советы полезны в долгосрочной перспективе. Будь позитивным и не критикуй 💸`;
+                case 'earning-ideas': return `Ты — Сберёнок, креативный генератор идей. Придумай 3–4 подробно описанные, безопасные и интересные идеи для заработка. Расскажи, с чего начать, что понадобится и какие могут быть результаты для детей 10–16 лет 🪙`;
+                case 'educator': return `Ты — Сберёнок, эрудированный и весёлый рассказчик. Расскажи подробно и увлекательно интересный научный факт. Объясни, почему это так, и приведи связанные с этим явлением примеры из жизни, чтобы ребёнку было очень интересно 🤓`;
+                default: return `Ты — Сберёнок, весёлый и умный помощник, лучший друг. Отвечай подробно, дружелюбно и развернуто. Будь позитивным, поддерживающим и используй смайлики, чтобы сделать общение живым и приятным.`;
+            }
+        })();
+        const payload = { model: "GigaChat", messages: [ { role: "system", content: systemText }, { role: "user", content: userPrompt } ] };
+        try {
+            const response = await fetch(GIGACHAT_API_URL, { method: "POST", headers: { "Content-Type": "application/json", }, body: JSON.stringify(payload) });
+            if (!response.ok) { console.error("Ошибка от прокси-сервера:", await response.text()); return "Ой! 😅 Что-то пошло не так на сервере, попробуй ещё раз чуть позже!"; }
+            const result = await response.json();
+            const text = result.choices?.[0]?.message?.content?.trim() || "Упс, кажется, я задумался... Попробуешь спросить снова?";
+            return text;
+        } catch (e) { console.error("Ошибка при запросе к прокси-серверу:", e);
+            return "Ой, не могу связаться с сервером 🤖 Убедись, что он запущен!";
+        } 
+        finally { appState.ui.isAiTyping = false; renderChatMessages(); }
+    }
+    
+    function triggerProactiveAI() {
+        if (appState.user.spendingHistory.length >= 1 && !appState.user.proactiveTipsShown.spendingAnalysis) {
+            showProactiveToast(
+                'Отлично, расход записан! Хочешь, я проанализирую твои траты и помогу найти, где можно сэкономить?',
+                'Да, проанализируй!',
+                'Проанализируй мои расходы и скажи, где я могу сэкономить.',
+                'financial-analyst'
+            );
+            appState.user.proactiveTipsShown.spendingAnalysis = true;
+            saveState();
+            return;
+        }
+
+        const mainGoal = appState.user.goals[0];
+        if (mainGoal && !appState.user.proactiveTipsShown.goalMotivation) {
+            const progress = (mainGoal.current / mainGoal.target) * 100;
+            if (progress > 75) {
+                showProactiveToast(
+                    `Ты так близко к цели "${mainGoal.name}"! Осталось совсем чуть-чуть. Хочешь, я дам тебе пару советов, как накопить остаток быстрее?`,
+                    'Хочу!',
+                    'Я почти накопил на свою цель. Дай мне 2-3 совета, как быстро получить оставшуюся сумму.',
+                    'financial-analyst'
+                );
+                appState.user.proactiveTipsShown.goalMotivation = true;
+                saveState();
+            }
+        }
+    }
+    
+    function showProactiveToast(message, buttonText, prompt, persona) {
+        const toast = document.createElement('div');
+        toast.className = 'w-full bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg flex items-start gap-3 opacity-0 transition-all duration-300 transform translate-y-2 border-l-4 border-[var(--accent)]';
+        toast.innerHTML = `
+            <img src="${characterStyles.default.img}" class="w-10 h-10 rounded-full flex-shrink-0">
+            <div class="flex-1">
+                <p class="text-sm font-semibold text-[var(--text-primary)]">Сберёнок заметил...</p>
+                <p class="text-xs text-[var(--text-secondary)] mb-2">${message}</p>
+                <button data-action="ai-action" data-prompt="${prompt}" data-persona="${persona}" class="w-full text-center text-xs font-bold text-white bg-[var(--accent)] py-1 px-3 rounded-md">${buttonText}</button>
+            </div>
+            <button class="close-toast text-gray-400 dark:text-gray-500">&times;</button>
+        `;
+        toast.querySelector('.close-toast').onclick = () => {
+            toast.classList.remove('opacity-100', 'translate-y-0');
+            setTimeout(() => toast.remove(), 300);
+        };
+        
+        DOM.toast.appendChild(toast);
+        setTimeout(() => toast.classList.add('opacity-100', 'translate-y-0'), 10);
+        setTimeout(() => {
+            if (toast) {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                setTimeout(() => toast.remove(), 300);
+            }
+        }, 10000);
+    }
+
+    function showModal(content) {
+        DOM.modal.innerHTML = `<div class="modal-backdrop fixed inset-0 bg-black/50 flex items-center justify-center p-4"><div class="modal-content bg-[var(--bg-modal)] rounded-3xl p-6 shadow-xl w-full max-w-sm">${content}</div></div>`;
+        DOM.modal.classList.remove('hidden');
+    }
+
+    function hideModal() { 
+        DOM.modal.classList.add('hidden'); 
+        DOM.modal.innerHTML = '';
+    }
+
+    function showToast(message, type = 'info') {
+        const colors = { info: 'bg-gray-800', success: 'bg-green-600', error: 'bg-red-600' };
+        const toast = document.createElement('div');
+        toast.className = `${colors[type]} text-white text-sm px-4 py-2 rounded-full shadow-lg opacity-0 transition-all duration-300 transform translate-y-2`;
+        toast.textContent = message;
+        DOM.toast.appendChild(toast);
+        setTimeout(() => toast.classList.add('opacity-100', 'translate-y-0'), 10);
+        setTimeout(() => { 
+            toast.classList.remove('opacity-100', 'translate-y-0'); 
+            setTimeout(() => toast.remove(), 300); 
+        }, 3000);
+    }
+    
+    function addXp(amount) {
+        appState.user.xp += amount;
+        let levelUp = false;
+        while(appState.user.xp >= XP_PER_LEVEL) { 
+            appState.user.level++;
+            appState.user.xp -= XP_PER_LEVEL; levelUp = true; 
+        }
+        if (levelUp) {
+            showToast(`Уровень повышен! 🎉 Ты достиг ${appState.user.level} уровня!`, 'success');
+        }
+        showToast(`+${amount} XP!`);
+        saveState();
+        if (appState.ui.currentView === 'profile') render();
+    }
+
+    function checkAchievements() {
+        let skinsUnlocked = false;
+        Object.values(achievementConfig).forEach(ach => {
+            if (!appState.user.achievements.includes(ach.name) && appState.user.stats[ach.goalKey] >= ach.goalValue) {
+                appState.user.achievements.push(ach.name); 
+                addXp(ach.xp);
+                showToast(`Достижение: "${ach.name}" 🏆`, 'success');
+                if (ach.unlockedSkin && !appState.user.unlockedSkins.includes(ach.unlockedSkin)) {
+                    appState.user.unlockedSkins.push(ach.unlockedSkin);
+                    showToast(`Новый скин: "${characterStyles[ach.unlockedSkin].name}"!`);
+                    skinsUnlocked = true;
+                }
+            }
+        });
+        if (skinsUnlocked) { saveState(); render(); }
+    }
+    
+    function applyTheme() {
+        document.documentElement.classList.toggle('dark', appState.ui.theme === 'dark');
+        document.querySelector(':root').style.setProperty('--user-accent-color', appState.ui.accentColor);
+        if (appState.ui.currentView === 'piggy-bank') {
+            setTimeout(renderCharts, 50);
+        }
+    }
+    
+    function showAddTaskModal() {
+        showModal(`<div class="text-center"><h3 class="text-xl font-bold mb-4">Добавить Задачу ✅</h3><div class="space-y-3 text-left"><label class="block text-sm font-medium text-[var(--text-secondary)]">Название задачи</label><input type="text" id="task-name-input" placeholder="Сделать уроки" class="w-full p-3 border border-[var(--border-color)] rounded-lg bg-[var(--bg-main)] focus:ring-1 focus:ring-[var(--accent)]"></div><div class="flex justify-between mt-6 gap-3"><button data-action="cancel" class="flex-1 py-2 rounded-lg bg-gray-300 dark:bg-gray-600 text-[var(--text-primary)] font-semibold">Отмена</button><button data-action="submit-add-task" class="flex-1 py-2 rounded-lg bg-[var(--accent)] text-white font-semibold">Добавить</button></div></div>`);
+        document.getElementById('task-name-input').focus();
+    }
+
+    function showEditTaskModal(taskId) {
+        const task = appState.user.schedule.find(t => t.id == taskId);
+        if (!task) return;
+        showModal(`<div class="text-center"><h3 class="text-xl font-bold mb-4">Изменить Задачу ✏️</h3><div class="space-y-3 text-left"><label class="block text-sm font-medium text-[var(--text-secondary)]">Название задачи</label><input type="text" id="task-edit-input" value="${task.task}" class="w-full p-3 border border-[var(--border-color)] rounded-lg bg-[var(--bg-main)] focus:ring-1 focus:ring-[var(--accent)]"></div><div class="flex justify-between mt-6 gap-3"><button data-action="cancel" class="flex-1 py-2 rounded-lg bg-gray-300 dark:bg-gray-600 font-semibold">Отмена</button><button data-action="submit-edit-task" data-task-id="${taskId}" class="flex-1 py-2 rounded-lg bg-[var(--accent)] text-white font-semibold">Сохранить</button></div></div>`);
+        document.getElementById('task-edit-input').focus();
+    }
+    
+    function showEditProfileModal() {
+        showModal(`<div class="text-center"><h3 class="text-xl font-bold mb-4">Изменить Профиль ✏️</h3><div class="space-y-3 text-left"><label class="block text-sm font-medium text-[var(--text-secondary)]">Имя</label><input type="text" id="profile-name-input" value="${appState.user.name}" class="w-full p-3 border rounded-lg bg-[var(--bg-main)] focus:ring-1 focus:ring-[var(--accent)]"><label class="block text-sm font-medium text-[var(--text-secondary)]">Фамилия</label><input type="text" id="profile-surname-input" value="${appState.user.surname}" class="w-full p-3 rounded-lg bg-[var(--bg-main)] focus:ring-1 focus:ring-[var(--accent)]"></div><div class="flex justify-between mt-6 gap-3"><button data-action="cancel" class="flex-1 py-2 rounded-lg bg-gray-300 dark:bg-gray-600 font-semibold">Отмена</button><button data-action="submit-edit-profile" class="flex-1 py-2 rounded-lg bg-[var(--accent)] text-white font-semibold">Сохранить</button></div></div>`);
+    }
+
+    function showGoalModal(goal = null) {
+        const isEdit = !!goal;
+        showModal(`<div class="text-center"><h3 class="text-xl font-bold mb-4">${isEdit ? 'Редактировать Цель' : 'Новая Цель 🎯'}</h3><div class="space-y-3 text-left"><label class="block text-sm font-medium text-[var(--text-secondary)]">Название</label><input type="text" id="goal-name" placeholder="Новый велосипед" class="w-full p-3 border rounded-lg bg-[var(--bg-main)]" value="${goal?.name || ''}"><label class="block text-sm font-medium text-[var(--text-secondary)]">Нужная сумма (₽)</label><input type="number" id="goal-target" placeholder="5000" class="w-full p-3 border rounded-lg bg-[var(--bg-main)]" value="${goal?.target || ''}">${isEdit ? `<label class="block text-sm font-medium text-[var(--text-secondary)]">Уже накоплено (₽)</label><input type="number" id="goal-current" placeholder="0" class="w-full p-3 border rounded-lg bg-[var(--bg-main)]" value="${goal?.current || 0}">` : ''}</div><div class="flex justify-between mt-6 gap-3"><button data-action="cancel" class="flex-1 py-2 rounded-lg bg-gray-300 dark:bg-gray-600 font-semibold">Отмена</button><button data-action="${isEdit ? 'submit-edit-goal' : 'submit-add-goal'}" data-goal-id="${goal?.id || ''}" class="flex-1 py-2 rounded-lg bg-[var(--accent)] text-white font-semibold">${isEdit ? 'Сохранить' : 'Создать'}</button></div></div>`);
+    }
+
+    function showManageFundsModal(goalId, type) {
+        const goal = appState.user.goals.find(g => g.id == goalId);
+        if (!goal) return;
+        const isDeposit = type === 'deposit';
+        const title = isDeposit ? 'Пополнить копилку 💸' : 'Взять из копилки 🛍️';
+        const maxAmount = isDeposit ? appState.user.balance : goal.current;
+        showModal(`<div class="text-center"><h3 class="text-xl font-bold mb-2">${title}</h3><p class="text-sm text-[var(--text-secondary)] mb-4">Цель: "${goal.name}"</p><div class="space-y-3 text-left"><label class="block text-sm font-medium text-[var(--text-secondary)]">Сумма (₽)</label><input type="number" id="fund-amount" placeholder="100.00" class="w-full p-3 border border-[var(--border-color)] rounded-lg bg-[var(--bg-main)]"><p class="text-xs text-right text-[var(--text-secondary)]">Доступно: ${maxAmount.toFixed(2)} ₽</p></div><div class="flex justify-between mt-6 gap-3"><button data-action="cancel" class="flex-1 py-2 rounded-lg bg-gray-300 dark:bg-gray-600 font-semibold">Отмена</button><button data-action="submit-manage-funds" data-goal-id="${goalId}" data-type="${type}" class="flex-1 py-2 rounded-lg ${isDeposit ? 'bg-[var(--accent)]' : 'bg-orange-500'} text-white font-semibold">${isDeposit ? 'Пополнить' : 'Снять'}</button></div></div>`);
+        document.getElementById('fund-amount').focus();
+    }
+    
+    function showAddExpenseModal() {
+        showModal(`<div class="text-center"><h3 class="text-xl font-bold mb-4">Записать Расход 💸</h3><div class="space-y-3 text-left"><label class="block text-sm font-medium text-[var(--text-secondary)]">Сумма (₽)</label><input type="number" id="expense-amount" placeholder="50.00" class="w-full p-3 border rounded-lg bg-[var(--bg-main)]"><label class="block text-sm font-medium text-[var(--text-secondary)]">Категория</label><select id="expense-category" class="w-full p-3 border rounded-lg bg-[var(--bg-main)]">${Object.keys(spendingCategories).map(cat => `<option value="${cat}">${cat}</option>`).join('')}</select><label class="block text-sm font-medium text-[var(--text-secondary)]">На что?</label><input type="text" id="expense-desc" placeholder="Мороженое" class="w-full p-3 border rounded-lg bg-[var(--bg-main)]"></div><div class="flex justify-between mt-6 gap-3"><button data-action="cancel" class="flex-1 py-2 rounded-lg bg-gray-300 dark:bg-gray-600 font-semibold">Отмена</button><button data-action="submit-expense" class="flex-1 py-2 rounded-lg bg-[var(--danger-color)] text-white font-semibold">Записать</button></div></div>`);
+    }
+
+    async function showAiHelpModal(prompt, persona) {
+        showModal(`<div class="text-center flex flex-col items-center"><img src="${characterStyles[appState.user.characterStyle].img}" class="w-20 h-20 rounded-full mb-2"><h2 class="text-xl font-bold mb-4">Помощь Сберёнка</h2><div id="ai-help-content" class="text-left max-h-[300px] overflow-y-auto text-sm text-[var(--text-primary)] bg-[var(--bg-main)] p-3 rounded-lg w-full"><p class="text-[var(--text-secondary)] text-center py-8">Сберёнок думает...</p></div><div class="flex justify-end mt-4 w-full"><button data-action="cancel" class="py-2 px-4 rounded-lg bg-gray-300 dark:bg-gray-600 font-semibold">Закрыть</button></div></div>`);
+        const helpContent = await callGigaChatAPI(prompt, persona);
+        const contentEl = document.getElementById('ai-help-content');
+        if (contentEl) contentEl.innerHTML = `<p class="whitespace-pre-wrap">${helpContent}</p>`;
+    }
+    
+    async function showLessonView(lessonId) {
+        const lesson = academyLessons[lessonId];
+        const isCompleted = appState.user.completedLessons.includes(lessonId);
+        showModal(`<div class="text-center flex flex-col items-center"><div class="text-6xl mb-4">${lesson.icon}</div><h2 class="text-xl font-bold mb-4">${lesson.title}</h2><div id="lesson-content" class="text-left max-h-[300px] overflow-y-auto text-sm bg-[var(--bg-main)] p-4 rounded-lg border border-[var(--border-color)] w-full"><div class="flex flex-col items-center py-8"><img src="${characterStyles[appState.user.characterStyle].img}" class="w-16 h-16 opacity-70 mb-2"/><p class="text-[var(--text-secondary)]">Сберёнок готовит урок...</p></div></div><div id="lesson-footer" class="mt-4 w-full"></div></div>`);
+        const lessonContent = await callGigaChatAPI(lesson.prompt, 'academy-tutor');
+        const contentEl = document.getElementById('lesson-content');
+        const footerEl = document.getElementById('lesson-footer');
+        if (contentEl) contentEl.innerHTML = `<p class="whitespace-pre-wrap">${lessonContent}</p>`;
+        if (footerEl) footerEl.innerHTML = `<div class="flex justify-end"><button data-action="${isCompleted ? 'cancel' : 'ask-if-understood'}" data-lesson-id="${lessonId}" class="py-2 px-6 rounded-lg bg-[var(--accent)] text-white font-semibold shadow-md active:scale-95">${isCompleted ? 'Отлично!' : 'Я понял!'}</button></div>`;
+    }
+    
+    document.addEventListener('click', async e => {
+        const target = e.target.closest('[data-action]'); if (!target) return;
+        const { action, view, taskId, goalId, charKey, prompt, persona, color, lessonId, type } = target.dataset;
+        switch(action) {
+            case 'navigate': navigate(view); break;
+            case 'cancel': hideModal(); break;
+            case 'toggle-theme': appState.ui.theme = appState.ui.theme === 'light' ? 'dark' : 'light'; applyTheme(); saveState(); render(); break;
+            case 'change-accent-color': appState.ui.accentColor = color; applyTheme(); saveState(); render(); break;
+            case 'change-character': if (appState.user.unlockedSkins.includes(charKey)) { appState.user.characterStyle = charKey; saveState(); render(); } else { showToast('Сначала разблокируй этот скин!', 'error'); } break;
+            case 'edit-profile': showEditProfileModal(); break;
+            case 'submit-edit-profile': appState.user.name = document.getElementById('profile-name-input').value.trim() || appState.user.name; appState.user.surname = document.getElementById('profile-surname-input').value.trim(); saveState(); hideModal(); render(); showToast("Профиль обновлен!", 'success'); break;
+            case 'show-ai-help': await showAiHelpModal(prompt, persona); break;
+            case 'add-task-modal': showAddTaskModal(); break;
+            case 'submit-add-task': { const taskName = document.getElementById('task-name-input').value.trim();
+                if (taskName) { appState.user.schedule.push({ id: Date.now(), task: taskName, done: false, xpEarned: false }); saveState(); render(); showToast("Задача добавлена!", 'success'); } hideModal();
+            break; }
+            case 'edit-task-modal': showEditTaskModal(taskId); break;
+            case 'submit-edit-task': { const newName = document.getElementById('task-edit-input').value.trim(); const task = appState.user.schedule.find(t => t.id == taskId);
+                if (task && newName) { task.task = newName; saveState(); render(); showToast("Задача обновлена!", "success"); } hideModal(); break;
+            }
+            case 'toggle-task': { const task = appState.user.schedule.find(t => t.id == taskId);
+                if (task) { task.done = !task.done; if (task.done && !task.xpEarned) { task.xpEarned = true; appState.user.stats.completedTasks++; addXp(10); checkAchievements(); } saveState(); render();
+            } break; }
+            case 'delete-task': appState.user.schedule = appState.user.schedule.filter(t => t.id != taskId); saveState(); render(); showToast("Задача удалена", 'info'); break;
+            case 'add-goal': showGoalModal(); break;
+            case 'edit-goal': showGoalModal(appState.user.goals.find(g => g.id == goalId)); break;
+            case 'submit-add-goal': { const goalName = document.getElementById('goal-name').value.trim(); const targetAmount = parseFloat(document.getElementById('goal-target').value);
+                if (goalName && targetAmount > 0) { appState.user.goals.push({ id: Date.now(), name: goalName, current: 0, target: targetAmount }); saveState(); render();
+                showToast("Цель создана!", 'success'); } hideModal(); break; }
+            case 'submit-edit-goal': { const goal = appState.user.goals.find(g => g.id == goalId);
+                if(goal) { goal.name = document.getElementById('goal-name').value.trim(); goal.target = parseFloat(document.getElementById('goal-target').value); goal.current = parseFloat(document.getElementById('goal-current').value); saveState(); render(); showToast("Цель обновлена!", 'success'); } hideModal(); break;
+            }
+            case 'delete-goal': { const goalToDelete = appState.user.goals.find(g => g.id == goalId);
+                if (goalToDelete) { appState.user.balance += goalToDelete.current; appState.user.goals = appState.user.goals.filter(g => g.id != goalId); saveState(); render();
+                showToast(`Цель удалена. ${goalToDelete.current.toFixed(2)} ₽ возвращено на баланс.`, 'info'); } break;
+            }
+            case 'manage-funds': showManageFundsModal(goalId, type); break;
+            case 'submit-manage-funds': { const fundGoal = appState.user.goals.find(g => g.id == goalId); const amount = parseFloat(document.getElementById('fund-amount').value);
+                if (!fundGoal || isNaN(amount) || amount <= 0) { showToast("Неверная сумма", 'error'); return;
+                } if (type === 'deposit') { if (amount > appState.user.balance) { showToast("Недостаточно средств на балансе", 'error'); return;
+                } fundGoal.current += amount; appState.user.balance -= amount; appState.user.stats.totalSavings += amount; addXp(Math.min(15, Math.floor(amount / 50))); showToast(`Копилка пополнена на ${amount} ₽!`, 'success');
+                } else { if (amount > fundGoal.current) { showToast("В копилке недостаточно средств", 'error'); return; } fundGoal.current -= amount;
+                appState.user.balance += amount; appState.user.stats.totalSavings -= amount; showToast(`Вы сняли ${amount} ₽ из копилки`, 'info'); } checkAchievements(); saveState(); hideModal(); render(); triggerProactiveAI(); break;
+            }
+            case 'add-expense': showAddExpenseModal(); break;
+            case 'submit-expense': { const expAmount = parseFloat(document.getElementById('expense-amount').value); const expDesc = document.getElementById('expense-desc').value.trim(); const expCat = document.getElementById('expense-category').value;
+                if (expAmount > 0 && expDesc && appState.user.balance >= expAmount) { appState.user.balance -= expAmount;
+                appState.user.spendingHistory.push({ id: Date.now(), date: new Date().toISOString().split('T')[0], amount: expAmount, category: expCat, desc: expDesc }); appState.user.stats.spendingCount++; checkAchievements(); saveState(); hideModal(); render();
+                showToast("Расход записан!", 'success'); triggerProactiveAI(); } else { showToast("Недостаточно средств или неверные данные.", 'error'); } break;
+            }
+            case 'start-lesson': await showLessonView(lessonId); break;
+            case 'ask-if-understood': { 
+                const lesson = academyLessons[lessonId];
+                if (lessonId && !appState.user.completedLessons.includes(lessonId)) { 
+                    appState.user.completedLessons.push(lessonId); 
+                    appState.user.stats.lessonsCompleted++; 
+                    addXp(lesson.xp); 
+                    checkAchievements(); 
+                    saveState(); 
+                    showToast(`Урок пройден! +${lesson.xp} XP`, 'success'); 
+                    render(); 
+                }
+                showModal(`
+                    <div class="text-center flex flex-col items-center">
+                        <img src="${characterStyles[appState.user.characterStyle].img}" class="w-20 h-20 rounded-full mb-4">
+                        <h3 class="text-xl font-bold mb-4">Отлично!</h3>
+                        <p class="text-[var(--text-secondary)] mb-6">Все ли было понятно в этом уроке?</p>
+                        <div class="flex justify-between w-full gap-3">
+                            <button data-action="repeat-lesson" data-lesson-id="${lessonId}" class="flex-1 py-2 rounded-lg bg-gray-300 dark:bg-gray-600 font-semibold">Нет, повторить</button>
+                            <button data-action="lesson-understood" class="flex-1 py-2 rounded-lg bg-[var(--accent)] text-white font-semibold">Да, всё ясно!</button>
+                        </div>
+                    </div>
+                `);
+                break;
+            }
+            case 'lesson-understood': {
+                showModal(`
+                    <div class="text-center flex flex-col items-center">
+                        <img src="${characterStyles[appState.user.characterStyle].img}" class="w-20 h-20 rounded-full mb-4">
+                        <h3 class="text-xl font-bold mb-4">Замечательно!</h3>
+                        <p class="text-[var(--text-secondary)] mb-6">Спасибо за усердную работу! Продолжай в том же духе. 🚀</p>
+                        <button data-action="cancel" class="w-full mt-4 py-2 rounded-lg bg-[var(--accent)] text-white font-semibold">Закрыть</button>
+                    </div>
+                `);
+                break;
+            }
+            case 'repeat-lesson': await showLessonView(lessonId); break;
+            case 'ai-action': case 'send-chat-message': { const chatInput = document.getElementById('chat-input'); let message = prompt || chatInput?.value.trim(); if (!message) return;
+                if (chatInput) chatInput.value = ''; if (appState.ui.currentView !== 'ai-assistant') { navigate('ai-assistant'); await new Promise(resolve => setTimeout(resolve, 50));
+                } appState.chat.history.push({ role: 'user', text: message }); renderChatMessages(); const botResponse = await callGigaChatAPI(message, persona || 'assistant');
+                appState.chat.history.push({ role: 'bot', text: botResponse }); saveState(); renderChatMessages(); break; }
+        }
+    });
+    function startOnboarding() { const steps = [ { title: "Добро пожаловать!", content: `Привет! Я Сберёнок, твой личный финансовый помощник. Я помогу тебе копить, планировать и учиться новому. Давай начнем!`, button: "Далее" }, { title: "Главный экран", content: "Здесь ты видишь свой баланс, главную цель и быстрые действия. Все самое важное — под рукой!", button: "Понятно!" }, { title: "Копилка и цели", content: "В разделе 'Копилка' ты можешь создавать цели, отслеживать накопления и анализировать свои расходы с помощью диаграмм.", button: "Здорово!" }, { title: "Академия", content: "Проходи интерактивные уроки в 'Академии', чтобы стать настоящим финансовым гением и зарабатывать XP!", button: "Начнем!" } ]; let currentStep = 0; function showOnboardingStep() { if (currentStep >= steps.length) { hideModal(); return; } const step = steps[currentStep]; showModal(`<div class="text-center"><img src="${characterStyles.default.img}" class="w-24 h-24 mx-auto mb-4"/><h3 class="text-xl font-bold mb-2">${step.title}</h3><p class="text-[var(--text-secondary)] mb-6">${step.content}</p><button id="next-onboarding-step" class="w-full py-2 rounded-lg bg-[var(--accent)] text-white font-semibold">${step.button}</button></div>`);
+        document.getElementById('next-onboarding-step').onclick = () => { currentStep++; showOnboardingStep(); }; } showOnboardingStep(); }
+    loadState(); Chart.register(ChartDataLabels); render();
+});
+</script>
+</body>
+</html>
+
+
