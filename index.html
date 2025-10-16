@@ -108,7 +108,7 @@ if ('serviceWorker' in navigator) {
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     let pieChart;
-    const GIGACHAT_API_URL = 'http://localhost:5000/api/chat'; 
+    const GIGACHAT_API_URL = 'https://server-5knc.onrender.com/api/chat';
     const XP_PER_LEVEL = 100;
     const BRIGHT_COLORS = ['#ff9f40', '#4bc0c0', '#ffcd56', '#9966ff', '#36a2eb', '#ff6384', '#4caf50' ];
     const characterStyles = {
@@ -353,28 +353,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-async function callGigaChatAPI(userPrompt, persona = "assistant") {
-    try {
-        const response = await fetch("http://localhost:5000/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                model: "GigaChat",
-                messages: [
-                    { role: "system", content: persona },
-                    { role: "user", content: userPrompt }
-                ]
-            })
-        });
-        if (!response.ok) throw new Error(`Server error: ${response.status}`);
-        const data = await response.json();
-        return data.choices?.[0]?.message?.content || "Ошибка: пустой ответ";
-    } catch (err) {
-        console.error("Ошибка при запросе к серверу:", err);
-        return "Ой, не могу связаться с сервером 🤖 Убедись, что он запущен!";
-    }
-}
-
+    async function callGigaChatAPI(userPrompt, persona = "assistant") {
+        appState.ui.isAiTyping = true;
+        renderChatMessages();
         
         const systemText = (() => {
             switch (persona) {
