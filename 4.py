@@ -8,7 +8,7 @@ from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
 
 # --- НАСТРОЙКА ---
 # 1. ЗАМЕНИТЕ ЭТУ ССЫЛКУ на вашу РЕАЛЬНУЮ HTTPS-ссылку с GitHub Pages!
-YOUR_PWA_URL = "https://mirrox24.github.io/-/"
+YOUR_PWA_URL = "https://server-5knc.onrender.com"
 # 2. Ваш токен от BotFather
 BOT_TOKEN = "8412698561:AAHqZJSRMjDv8QEx6_GNEgxW4bspOtniiIg"
 # -----------------
